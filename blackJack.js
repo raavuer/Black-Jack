@@ -1,6 +1,4 @@
 "use strict";
-const prompt = require("prompt-sync")();
-
 const getTenRandomCards = (deck) => {
   let cards = {};
   let cardsFromDeck = Object.getOwnPropertyNames(deck);
