@@ -6,18 +6,6 @@ import { dirname, join } from "node:path";
 import { Server } from "socket.io";
 import { networkInterfaces } from "node:os";
 
-const ip = Object.values(networkInterfaces()).reduce(
-  (r, list) =>
-    r.concat(
-      list.reduce(
-        (rr, i) =>
-          rr.concat((i.family === "IPv4" && !i.internal && i.address) || []),
-        []
-      )
-    ),
-  []
-);
-
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
@@ -52,7 +40,7 @@ const drawCard = (cards, recipient) => {
 
 const valueCards = (cards, deckWithValues) => {
   let totalValue = 0;
-  cards.sort().reverse(); // Count ace cards last.
+  cards.sort().reverse(); // Count aces last.
   cards.forEach((card) => {
     let value = deckWithValues[card];
     value = value === 11 ? (totalValue + value > 22 ? 1 : 11) : value;
@@ -118,78 +106,112 @@ const deckOfCards = {
 
 const games = {};
 
-server.listen(8080, () => {
-  console.log(`Server running at http://${ip}:8080`);
+const ip = Object.values(networkInterfaces()).reduce(
+  (r, list) =>
+    r.concat(
+      list.reduce(
+        (rr, i) =>
+          rr.concat((i.family === "IPv4" && !i.internal && i.address) || []),
+        []
+      )
+    ),
+  []
+);
+const port = 8080;
+server.listen(port, () => {
+  console.log(`Server running at http://${ip}:${port}`);
   io.on("connection", (socket) => {
     socket.on("disconnect", () => {
       delete games[socket.id];
     });
-    games[socket.id] = {
-      drawPile: getTenRandomCards(deckOfCards),
-      player: {
-        cards: [],
-        value: 0,
-      },
-      dealer: {
-        cards: [],
-        value: 0,
-      },
-    };
-    games[socket.id] = drawCard(games[socket.id], "player");
-    games[socket.id] = drawCard(games[socket.id], "dealer");
-    games[socket.id] = drawCard(games[socket.id], "player");
-    io.to(socket.id).emit("players-turn");
-    io.to(socket.id).emit("display-players-cards", games[socket.id]);
-    io.to(socket.id).emit("display-dealers-cards", games[socket.id]);
-    socket.on("hit", () => {
+    socket.on("start", () => {
+      games[socket.id] = {
+        drawPile: getTenRandomCards(deckOfCards),
+        player: {
+          cards: [],
+          value: 0,
+        },
+        dealer: {
+          cards: [],
+          value: 0,
+        },
+      };
       games[socket.id] = drawCard(games[socket.id], "player");
+      games[socket.id] = drawCard(games[socket.id], "dealer");
+      games[socket.id] = drawCard(games[socket.id], "player");
+      io.to(socket.id).emit("players-turn");
       io.to(socket.id).emit("display-players-cards", games[socket.id]);
-      if (games[socket.id].player.cards.length > 4) {
-        games[socket.id].player.value = valueCards(
-          games[socket.id].player.cards,
-          deckOfCards
-        );
-        io.to(socket.id).emit("display-players-value", games[socket.id]);
-        io.to(socket.id).emit("dealers-turn");
-      }
-    });
-    socket.on("stay", () => {
+      io.to(socket.id).emit("display-dealers-cards", games[socket.id]);
       games[socket.id].player.value = valueCards(
         games[socket.id].player.cards,
         deckOfCards
       );
-      io.to(socket.id).emit("display-players-value", games[socket.id]);
-      io.to(socket.id).emit("dealers-turn");
-    });
-    socket.on("player-done", () => {
-      while (games[socket.id].dealer.value < 17) {
-        games[socket.id] = drawCard(games[socket.id], "dealer");
-        io.to(socket.id).emit("display-dealers-cards", games[socket.id]);
-        games[socket.id].dealer.value = valueCards(
-          games[socket.id].dealer.cards,
-          deckOfCards
-        );
-      }
+      games[socket.id].dealer.value = valueCards(
+        games[socket.id].dealer.cards,
+        deckOfCards
+      );
       io.to(socket.id).emit("display-dealers-value", games[socket.id]);
-      let condition = "";
-      if (games[socket.id].player.value === 21) {
-        condition = "You Won! Your total value was exactly 21.";
-      } else if (games[socket.id].player.value > 21) {
-        condition = "You Lost! The total value must be less than 21.";
-      } else if (games[socket.id].player.cards.length === 5) {
-        condition = "You Won! You got 5 cards without going over 21.";
-      } else if (games[socket.id].dealer.value > 21) {
-        condition = "You Won! The dealer's total was more than 21."
+      io.to(socket.id).emit("display-players-value", games[socket.id]);
+      if (valueCards(games[socket.id].player.cards, deckOfCards) === 21) {
+        io.to(socket.id).emit("dealers-turn");
       } else {
-        if (games[socket.id].player.value > games[socket.id].dealer.value) {
-          condition = "You Won! Your total value was more than the dealer's.";
-        } else if (games[socket.id].dealer.value === games[socket.id].player.value) {
-          condition = "You Lost! It was a tie, which goes to the dealer.";
-        } else {
-          condition = "You Lost! The dealer's total value was more than yours.";
-        }
+        socket.on("hit", () => {
+          games[socket.id] = drawCard(games[socket.id], "player");
+          io.to(socket.id).emit("display-players-cards", games[socket.id]);
+          games[socket.id].player.value = valueCards(
+            games[socket.id].player.cards,
+            deckOfCards
+          );
+          io.to(socket.id).emit("display-players-value", games[socket.id]);
+          if (
+            games[socket.id].player.value >= 21 ||
+            games[socket.id].player.cards.length > 4
+          ) {
+            io.to(socket.id).emit("dealers-turn");
+          }
+        });
+        socket.on("stay", () => {
+          io.to(socket.id).emit("dealers-turn");
+        });
       }
-      io.to(socket.id).emit("win-loss-condition", condition);
+      socket.on("player-done", () => {
+        while (
+          games[socket.id].dealer.value < 17 &&
+          games[socket.id].dealer.cards.length < 5
+        ) {
+          games[socket.id] = drawCard(games[socket.id], "dealer");
+          io.to(socket.id).emit("display-dealers-cards", games[socket.id]);
+          games[socket.id].dealer.value = valueCards(
+            games[socket.id].dealer.cards,
+            deckOfCards
+          );
+          io.to(socket.id).emit("display-dealers-value", games[socket.id]);
+        }
+        let condition = "";
+        if (games[socket.id].player.value === 21) {
+          condition = "You Won! Your total value was exactly 21.";
+        } else if (games[socket.id].player.value > 21) {
+          condition = "You Lost! The total value must be less than 21.";
+        } else if (games[socket.id].player.cards.length === 5) {
+          condition = "You Won! You got 5 cards without going over 21.";
+        } else if (games[socket.id].dealer.value > 21) {
+          condition = "You Won! The dealer's total was more than 21.";
+        } else if (games[socket.id].dealer.cards.length === 5) {
+          condition = "You Lost! The dealer got 5 cards without going over 21.";
+        } else {
+          if (games[socket.id].player.value > games[socket.id].dealer.value) {
+            condition = "You Won! Your total value was more than the dealer's.";
+          } else if (
+            games[socket.id].dealer.value === games[socket.id].player.value
+          ) {
+            condition = "You Lost! It was a tie, which goes to the dealer.";
+          } else {
+            condition =
+              "You Lost! The dealer's total value was more than yours.";
+          }
+        }
+        io.to(socket.id).emit("win-loss-condition", condition);
+      });
     });
   });
 });

@@ -3,32 +3,55 @@
   <head>
     <title>Black Jack</title>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css" />
   </head>
-  <body>
-    <div class="w3-container w3-center w3-light-green">
-      <h1>Black Jack</h1>
-    </div>
-
-    <div class="w3-container w3-center w3-green w3-text-black">
-      <div id="player-cards">
-        <h4>Player's cards:</h4>
-        <ul style="display: inline-block;"></ul>
-        <p id="player-value"></p>
+  <body class="w3-container w3-green w3-padding-32">
+    <div class="w3-container w3-center w3-text-black">
+      <div
+        class="w3-border w3-border-black w3-round-xlarge w3-cyan"
+        style="display: inline-block"
+      >
+        <h1 class="w3-panel">Black Jack</h1>
       </div>
-      <div id="buttons">
-        <button id="hit" class="w3-btn w3-round-xlarge w3-black">Hit</button>
-        <button id="stay" class="w3-btn w3-round-xlarge w3-black">Stay</button>
+      <div class="w3-row-padding w3-padding-32">
+        <div class="w3-half">
+          <div id="player-cards">
+            <h4>Player's cards:</h4>
+            <ul
+              style="display: inline-block"
+              class="w3-card-4 w3-ul w3-round-xlarge w3-border w3-border-black"
+            ></ul>
+            <p id="player-value"></p>
+          </div>
+          <div id="buttons" style="display: inline-block" class="w3-padding">
+            <button id="hit" class="w3-btn w3-card-4 w3-round-xlarge w3-black w3-border w3-border-blue">
+              Hit
+            </button>
+            <button id="stay" class="w3-btn w3-card-4 w3-round-xlarge w3-black w3-border w3-border-blue">
+              Stay
+            </button>
+          </div>
+        </div>
+        <div class="w3-half">
+          <div id="dealer-cards">
+            <h4>Dealer's cards:</h4>
+            <ul
+              style="display: inline-block"
+              class="w3-card-4 w3-ul w3-round-xlarge w3-border w3-border-black"
+            ></ul>
+            <p id="dealer-value"></p>
+          </div>
+        </div>
       </div>
-      <div id="dealer-cards">
-        <h4>Dealer's cards:</h4>
-        <ul style="display: inline-block;"></ul>
-        <p id="dealer-value"></p>
-      </div>
-      <div id="end-of-game">
+      <div id="end-of-game" style="display: none">
         <h3></h3>
-        <button id="play-again" class="w3-btn w3-round-xlarge w3-black">Play Again</button>
+        <div class="w3-padding-16">
+          <button id="play-again" class="w3-btn w3-round-xlarge w3-black w3-border w3-border-cyan">
+            Play Again
+          </button>
+        </div>
       </div>
     </div>
 
@@ -44,22 +67,25 @@
       const $hitBtn = $("#buttons #hit");
       const $stayBtn = $("#buttons #stay");
       const $endGame = $("#end-of-game");
-      const $gameResult = $("#end-of-game h2");
+      const $gameResult = $("#end-of-game h3");
       const $playAgainBtn = $("#end-of-game #play-again");
 
       socket.on("connect", () => {
-        $endGame.hide();
+        socket.on("disconnect", () => {
+          location.reload();
+        });
+        socket.emit("start");
         socket.on("players-turn", () => {
           socket.on("display-players-cards", (cards) => {
             $playerCards.empty();
             cards.player.cards.forEach((card) => {
-              $("<li></li>").text(card).appendTo($playerCards);
+              $playerCards.append(`<li class="w3-animate-left">${card}</li>`);
             });
           });
           socket.on("display-dealers-cards", (cards) => {
             $dealerCards.empty();
             cards.dealer.cards.forEach((card) => {
-              $dealerCards.append(`<li>${card}</li>`);
+              $dealerCards.append(`<li class="w3-animate-right">${card}</li>`);
             });
           });
           $hitBtn.click(() => {
@@ -69,32 +95,26 @@
             socket.emit("stay");
           });
           socket.on("display-players-value", (cards) => {
-            $playerValue.text(
-              `Your cards' total value is: ${cards.player.value}`
-            );
+            $playerValue
+              .text(`Your cards' total value is: ${cards.player.value}`)
+              .show();
+          });
+          socket.on("display-dealers-value", (cards) => {
+            $dealerValue
+              .text(`The dealer's total value is: ${cards.dealer.value}`)
+              .show();
           });
         });
         socket.on("dealers-turn", () => {
           socket.emit("player-done");
           $buttons.hide();
-          socket.on("display-dealers-cards", (cards) => {
-            $dealerCards.empty();
-            cards.dealer.cards.forEach((card) => {
-              $dealerCards.append(`<li>${card}</li>`);
-            });
-          });
-          socket.on("display-dealers-value", (cards) => {
-            $dealerValue.text(
-              `Your cards' total value is: ${cards.dealer.value}`
-            );
-          });
         });
-      });
-      socket.on("win-loss-condition", (condition) => {
-        $gameResult.text(condition);
-        $endGame.show();
-        $playAgainBtn.click( () => {
-          location.reload();
+        socket.on("win-loss-condition", (condition) => {
+          $gameResult.text(condition);
+          $endGame.show();
+          $playAgainBtn.click(() => {
+            location.reload();
+          });
         });
       });
     </script>
