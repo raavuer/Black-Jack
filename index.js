@@ -17,35 +17,35 @@ app.get("/", (req, res) => {
 });
 
 const getTenRandomCards = (deck) => {
-  let cards = {};
+  let cards = [];
   let cardsFromDeck = Object.getOwnPropertyNames(deck);
   for (let i = 0; i < 10; i++) {
     let randomCardNumber = Math.floor(Math.random() * cardsFromDeck.length);
     let card = cardsFromDeck[randomCardNumber];
-    let value = deck[card];
     if (card in cards) {
       i--;
     } else {
-      cards[card] = value;
+      cards.push(card);
     }
   }
   return cards;
 };
 
 const drawCard = (cards, recipient) => {
-  cards[recipient].cards.push(Object.getOwnPropertyNames(cards.drawPile)[0]);
-  delete cards.drawPile[Object.getOwnPropertyNames(cards.drawPile)[0]];
+  cards[recipient].cards.push(cards.drawPile.pop());
   return cards;
 };
 
 const valueCards = (cards, deckWithValues) => {
   let totalValue = 0;
-  cards.sort().reverse(); // Count aces last.
-  cards.forEach((card) => {
-    let value = deckWithValues[card];
-    value = value === 11 ? (totalValue + value > 22 ? 1 : 11) : value;
-    totalValue += value;
-  });
+  cards
+    .sort()
+    .reverse() // Count Aces last
+    .forEach((card) => {
+      let value = deckWithValues[card];
+      value = value === 11 ? (totalValue + value > 22 ? 1 : 11) : value;
+      totalValue += value;
+    });
   return totalValue;
 };
 
@@ -105,113 +105,46 @@ const deckOfCards = {
 };
 
 const games = {};
-
-const ip = Object.values(networkInterfaces()).reduce(
-  (r, list) =>
-    r.concat(
-      list.reduce(
-        (rr, i) =>
-          rr.concat((i.family === "IPv4" && !i.internal && i.address) || []),
-        []
-      )
-    ),
-  []
-);
-const port = 8080;
-server.listen(port, () => {
-  console.log(`Server running at http://${ip}:${port}`);
-  io.on("connection", (socket) => {
-    socket.on("disconnect", () => {
-      delete games[socket.id];
-    });
-    socket.on("start", () => {
-      games[socket.id] = {
-        drawPile: getTenRandomCards(deckOfCards),
-        player: {
-          cards: [],
-          value: 0,
-        },
-        dealer: {
-          cards: [],
-          value: 0,
-        },
-      };
-      games[socket.id] = drawCard(games[socket.id], "player");
-      games[socket.id] = drawCard(games[socket.id], "dealer");
-      games[socket.id] = drawCard(games[socket.id], "player");
-      io.to(socket.id).emit("players-turn");
-      io.to(socket.id).emit("display-players-cards", games[socket.id]);
-      io.to(socket.id).emit("display-dealers-cards", games[socket.id]);
-      games[socket.id].player.value = valueCards(
-        games[socket.id].player.cards,
-        deckOfCards
-      );
-      games[socket.id].dealer.value = valueCards(
-        games[socket.id].dealer.cards,
-        deckOfCards
-      );
-      io.to(socket.id).emit("display-dealers-value", games[socket.id]);
-      io.to(socket.id).emit("display-players-value", games[socket.id]);
-      if (valueCards(games[socket.id].player.cards, deckOfCards) === 21) {
-        io.to(socket.id).emit("dealers-turn");
-      } else {
-        socket.on("hit", () => {
-          games[socket.id] = drawCard(games[socket.id], "player");
-          io.to(socket.id).emit("display-players-cards", games[socket.id]);
-          games[socket.id].player.value = valueCards(
-            games[socket.id].player.cards,
-            deckOfCards
-          );
-          io.to(socket.id).emit("display-players-value", games[socket.id]);
-          if (
-            games[socket.id].player.value >= 21 ||
-            games[socket.id].player.cards.length > 4
-          ) {
-            io.to(socket.id).emit("dealers-turn");
-          }
-        });
-        socket.on("stay", () => {
-          io.to(socket.id).emit("dealers-turn");
+io.on("connection", (socket) => {
+  socket.on("play", (gameType, room) => {
+    if (gameType === "join") {
+      if (games[room]) {
+        games[room].players.push(socket.id);
+        socket.on("disconnect", () => {
+          games[room].players.pop(socket.id);
         });
       }
-      socket.on("player-done", () => {
-        while (
-          games[socket.id].dealer.value < 17 &&
-          games[socket.id].dealer.cards.length < 5
-        ) {
-          games[socket.id] = drawCard(games[socket.id], "dealer");
-          io.to(socket.id).emit("display-dealers-cards", games[socket.id]);
-          games[socket.id].dealer.value = valueCards(
-            games[socket.id].dealer.cards,
-            deckOfCards
-          );
-          io.to(socket.id).emit("display-dealers-value", games[socket.id]);
-        }
-        let condition = "";
-        if (games[socket.id].player.value === 21) {
-          condition = "You Won! Your total value was exactly 21.";
-        } else if (games[socket.id].player.value > 21) {
-          condition = "You Lost! The total value must be less than 21.";
-        } else if (games[socket.id].player.cards.length === 5) {
-          condition = "You Won! You got 5 cards without going over 21.";
-        } else if (games[socket.id].dealer.value > 21) {
-          condition = "You Won! The dealer's total was more than 21.";
-        } else if (games[socket.id].dealer.cards.length === 5) {
-          condition = "You Lost! The dealer got 5 cards without going over 21.";
-        } else {
-          if (games[socket.id].player.value > games[socket.id].dealer.value) {
-            condition = "You Won! Your total value was more than the dealer's.";
-          } else if (
-            games[socket.id].dealer.value === games[socket.id].player.value
-          ) {
-            condition = "You Lost! It was a tie, which goes to the dealer.";
-          } else {
-            condition =
-              "You Lost! The dealer's total value was more than yours.";
-          }
-        }
-        io.to(socket.id).emit("win-loss-condition", condition);
+    } else if (gameType === "host") {
+      games[socket.id.substring(0, 4).toUpperCase()] = {
+        gameType: "multi",
+        players: [socket.id],
+      };
+      socket.on("disconnect", () => {
+        delete games[socket.id.substring(0, 4).toUpperCase()];
       });
-    });
+    } else {
+      games[socket.id] = {
+        gameType: "solo",
+      };
+      socket.on("disconnect", () => {
+        delete games[socket.id];
+      });
+    }
+    console.log(games);
   });
+});
+
+const getLocalIPv4Address = () => {
+  const interfaces = networkInterfaces();
+  for (const interfaceList of Object.values(interfaces)) {
+    for (const networkInterface of interfaceList) {
+      if (networkInterface.family === "IPv4" && !networkInterface.internal) {
+        return networkInterface.address;
+      }
+    }
+  }
+};
+const [ip, port] = [getLocalIPv4Address(), 8080];
+server.listen(port, () => {
+  console.log(`Server running at http://${ip}:${port}`);
 });
