@@ -55,11 +55,39 @@
         const $startButtons = $("#start-buttons button");
         const $roomCode = $("#join-code");
 
+        const createCardElement = (card) => {
+          return $("<div>")
+            .addClass("w3-display-container w3-card-4 w3-round-xlarge w3-white")
+            .css({
+              "width": "75px",
+              "height": "calc(75px * 3 / 2)",
+              "display": "inline-block"
+            })
+            .append([
+              $("<div>").addClass("w3-display-topleft w3-padding").text(card),
+              $("<div>")
+                .addClass("w3-display-middle w3-padding")
+                .text(card.slice(-1)),
+              $("<div>")
+                .addClass("w3-display-bottomright w3-padding")
+                .text(card)
+            ]);
+        };
+
         socket.on("connect", () => {
           $startButtons.click(function (event) {
             event.preventDefault();
-            socket.emit("play", $(this).text().trim().toLowerCase(), $roomCode.val());
+            socket.emit(
+              "play",
+              $(this).text().trim().toLowerCase(),
+              $roomCode.val()
+            );
             $(this).parent().hide();
+          });
+          socket.on("cards", (cards) => {
+            cards.forEach((card) => {
+              createCardElement(card).appendTo($("main"));
+            });
           });
         });
       });

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Black Jack</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css" />
+  </head>
+  <body class="w3-center w3-green w3-text-black">
+    <header
+      class="w3-container w3-card-4 w3-cyan w3-border-bottom w3-border-black"
+    >
+      <h1 class="w3-left">Black Jack</h1>
+      <h3 class="w3-right">Win Streak: <span id="win-streak">0</span></h3>
+    </header>
+    <main id="cards" class="w3-panel w3-cell-row w3-hide">
+      <div
+        class="w3-cell w3-mobile w3-card-4 w3-round-xlarge w3-border w3-border-black"
+      >
+        <h2>Player</h2>
+        <h6 id="player-value"></h6>
+        <div id="player-cards"></div>
+        <div id="player-buttons" class="w3-padding w3-hide">
+          <button
+            id="hit-button"
+            class="w3-btn w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black"
+          >
+            Hit
+          </button>
+          <button
+            id="stay-button"
+            class="w3-btn w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black"
+          >
+            Stay
+          </button>
+        </div>
+      </div>
+      <div
+        class="w3-cell w3-mobile w3-card-4 w3-round-xlarge w3-border w3-border-black"
+      >
+        <h2>Dealer</h2>
+        <h6 id="dealer-value"></h6>
+        <div id="dealer-cards"></div>
+      </div>
+    </main>
+    <footer>
+      <h4 id="game-result" class="w3-hide"></h4>
+      <div id="start-and-end-buttons" class="w3-container w3-margin">
+        <div id="start-button">
+          <button
+            class="w3-button w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black"
+          >
+            Start
+          </button>
+        </div>
+        <div id="restart-button" class="w3-hide">
+          <button
+            class="w3-button w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black"
+          >
+            Play Again
+          </button>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      "use strict";
+      $(() => {
+        const $cards = $("#cards");
+        const $dealerCards= $("#dealer-cards");
+        const $dealerValue = $("#dealer-value");
+        const $playerCards = $("#player-cards");
+        const $playerValue = $("#player-value");
+        const $playerButtons = $("#player-buttons");
+        const $hitButton = $("#hit-button");
+        const $stayButton = $("#stay-button");
+        const $startAndEndButtons = $("#start-and-end-buttons");
+        const $startButton = $("#start-button");
+        const $restartButton = $("#restart-button");
+        const $gameResult = $("#game-result");
+        const $winStreak = $("#win-streak");
+        const deckOfCards = {
+          "A♣": 11,
+          "A♦": 11,
+          "A♥": 11,
+          "A♠": 11,
+          "2♣": 2,
+          "2♦": 2,
+          "2♥": 2,
+          "2♠": 2,
+          "3♣": 3,
+          "3♦": 3,
+          "3♥": 3,
+          "3♠": 3,
+          "4♣": 4,
+          "4♦": 4,
+          "4♥": 4,
+          "4♠": 4,
+          "5♣": 5,
+          "5♦": 5,
+          "5♥": 5,
+          "5♠": 5,
+          "6♣": 6,
+          "6♦": 6,
+          "6♥": 6,
+          "6♠": 6,
+          "7♣": 7,
+          "7♦": 7,
+          "7♥": 7,
+          "7♠": 7,
+          "8♣": 8,
+          "8♦": 8,
+          "8♥": 8,
+          "8♠": 8,
+          "9♣": 9,
+          "9♦": 9,
+          "9♥": 9,
+          "9♠": 9,
+          "10♣": 10,
+          "10♦": 10,
+          "10♥": 10,
+          "10♠": 10,
+          "J♣": 10,
+          "J♦": 10,
+          "J♥": 10,
+          "J♠": 10,
+          "Q♣": 10,
+          "Q♦": 10,
+          "Q♥": 10,
+          "Q♠": 10,
+          "K♣": 10,
+          "K♦": 10,
+          "K♥": 10,
+          "K♠": 10,
+        };
+
+        const createCardElement = (card) => {
+          return $("<div>")
+            .addClass("w3-display-container w3-card-4 w3-round-xlarge w3-white")
+            .css({
+              width: "100px",
+              height: "calc(100px * 3 / 2)",
+              display: "inline-block",
+            })
+            .append([
+              $("<div>")
+                .addClass("w3-display-topleft w3-padding")
+                .append($("<h5>").text(card)),
+              $("<div>")
+                .addClass("w3-display-middle w3-padding")
+                .append($("<h6>").text(card.slice(-1))),
+              $("<div>")
+                .addClass("w3-display-bottomright w3-padding")
+                .append($("<h5>").text(card)),
+            ]);
+        };
+        const getTenRandomCards = (deck) => {
+          const cards = [];
+          const cardsFromDeck = Object.getOwnPropertyNames(deck);
+          for (let i = 0; i < 10; i++) {
+            const randomCardNumber = Math.floor(
+              Math.random() * cardsFromDeck.length
+            );
+            const card = cardsFromDeck[randomCardNumber];
+            if (card in cards) {
+              i--;
+            } else {
+              cards.push(card);
+            }
+          }
+          return cards;
+        };
+        const valueCards = (cards, deckWithValues) => {
+          let totalValue = 0;
+          cards.forEach((card, index) => {
+            if (card[0] === "A") {
+              cards.push(cards.splice(index, 1)[0]);
+            }
+          });
+          cards.forEach((card) => {
+            let value = deckWithValues[card];
+            value = value === 11 ? (totalValue + value > 21 ? 1 : 11) : value;
+            totalValue += value;
+          });
+          return totalValue;
+        };
+        const getWinOrLoss = (
+          playerValue,
+          playerCards,
+          dealerValue,
+          dealerCards
+        ) => {
+          let result = "";
+          if (playerValue === 21) {
+            result = "You Won! Your total value was exactly 21.";
+          } else if (playerValue > 21) {
+            result = "You Lost! The total value must be less than 21.";
+          } else if (playerCards.length === 5) {
+            result = "You Won! You got 5 cards without going over 21.";
+          } else if (dealerValue > 21) {
+            result = "You Won! The dealer's total was more than 21.";
+          } else if (dealerCards.length === 5) {
+            result = "You Lost! The dealer got 5 cards without going over 21.";
+          } else {
+            if (playerValue > dealerValue) {
+              result = "You Won! Your total value was more than the dealer's.";
+            } else if (dealerValue === playerValue) {
+              result = "You Lost! It was a tie, which goes to the dealer.";
+            } else {
+              result =
+                "You Lost! The dealer's total value was more than yours.";
+            }
+          }
+          return result;
+        };
+
+        const gameLoop = (deck) => {
+          const drawPile = getTenRandomCards(deck);
+          const playerCards = [];
+          const dealerCards = [];
+          playerCards.push(drawPile.pop());
+          dealerCards.push(drawPile.pop());
+          playerCards.push(drawPile.pop());
+          for (const card of playerCards) {
+            $playerCards.append(
+              createCardElement(card).addClass("w3-animate-left")
+            );
+          }
+          for (const card of dealerCards) {
+            $dealerCards.append(
+              createCardElement(card).addClass("w3-animate-right")
+            );
+          }
+          if (valueCards(playerCards, deck) === 21) {
+            $gameResult
+              .removeClass("w3-hide")
+              .show()
+              .text("You Won! You got a BlackJack.");
+            $winStreak.text(parseInt($winStreak.text()) + 1);
+            $startAndEndButtons.show();
+            $restartButton.removeClass("w3-hide").show();
+            return;
+          }
+          $playerButtons.removeClass("w3-hide").show();
+          $hitButton.click(() => {
+            playerCards.push(drawPile.pop());
+            $playerCards.append(
+              createCardElement(playerCards[playerCards.length - 1]).addClass(
+                "w3-animate-left"
+              )
+            );
+            if (playerCards.length > 4 || valueCards(playerCards, deck) >= 21) {
+              $stayButton.click();
+            }
+          });
+          $stayButton.click(() => {
+            $hitButton.off("click");
+            $stayButton.off("click");
+            $playerButtons.hide();
+            while (
+              valueCards(dealerCards, deck) < 17 &&
+              dealerCards.length < 5
+            ) {
+              dealerCards.push(drawPile.pop());
+              $dealerCards.append(
+                createCardElement(dealerCards[dealerCards.length - 1]).addClass(
+                  "w3-animate-right"
+                )
+              );
+            }
+            const playerValue = valueCards(playerCards, deck);
+            $playerValue
+              .text(`Your cards' total value is: ${playerValue}.`)
+              .show();
+            const dealerValue = valueCards(dealerCards, deck);
+            $dealerValue
+              .text(`The dealer cards' total value is: ${dealerValue}.`)
+              .show();
+            const winOrLoss = getWinOrLoss(
+              playerValue,
+              playerCards,
+              dealerValue,
+              dealerCards
+            );
+            $gameResult.removeClass("w3-hide").show().text(winOrLoss);
+            if (winOrLoss.substring(4, 7) === "Won") {
+              $winStreak.text(parseInt($winStreak.text()) + 1);
+            } else {
+              $winStreak.text(0);
+            }
+            $startAndEndButtons.show();
+            $restartButton.removeClass("w3-hide").show();
+          });
+        };
+
+        $startButton.click(() => {
+          $startAndEndButtons.hide();
+          $startButton.hide();
+          $cards.removeClass("w3-hide").show();
+          try {
+            gameLoop(deckOfCards);
+          } catch (error) {
+            alert(error);
+          }
+        });
+        $restartButton.click(() => {
+          $cards.hide();
+          $playerCards.empty();
+          $playerValue.hide();
+          $dealerCards.empty();
+          $dealerValue.hide();
+          $gameResult.hide();
+          $restartButton.hide();
+          $startButton.click();
+        });
+      });
+    </script>
+  </body>
+</html>
