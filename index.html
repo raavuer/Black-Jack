@@ -1,96 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Black Jack</title>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css" />
-  </head>
-  <body class="w3-container w3-padding-32 w3-center w3-green">
-    <header
-      class="w3-container w3-card-4 w3-border w3-border-black w3-round-xlarge w3-cyan"
-      style="display: inline-block"
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Black Jack">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css" />
+  <title>Black Jack</title>
+</head>
+<body class="w3-center w3-green w3-text-black">
+  <header
+    class="w3-container w3-card-4 w3-cyan w3-border-bottom w3-border-black"
+  >
+    <h1>Black Jack</h1>
+  </header>
+  <main class="w3-container w3-margin">
+    <button
+      id="singleplayer-button"
+      class="w3-button w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black"
+      onclick="window.location = 'singleplayer.html'"
     >
-      <h1>Black Jack</h1>
-    </header>
-    <main class="w3-panel w3-padding-16">
-      <form id="start-buttons" class="w3-container">
-        <button
-          id="soloBtn"
-          class="w3-btn w3-round-xlarge w3-black w3-hover-blue-gray"
-        >
-          Solo
-        </button>
-        <br /><br />
-        <input
-          id="join-code"
-          type="text"
-          placeholder="Room Code"
-          maxlength="4"
-          size="8"
-          class="w3-border w3-padding w3-border-black w3-round-xlarge"
-        />
-        <button
-          id="joinBtn"
-          class="w3-btn w3-round-xlarge w3-black w3-hover-blue-gray"
-        >
-          Join
-        </button>
-        <br /><br />
-        <button
-          id="hostBtn"
-          class="w3-btn w3-round-xlarge w3-black w3-hover-blue-gray"
-        >
-          Host
-        </button>
-      </form>
-    </main>
-
-    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
-    <script>
-      $(() => {
-        const socket = io();
-
-        const $startButtons = $("#start-buttons button");
-        const $roomCode = $("#join-code");
-
-        const createCardElement = (card) => {
-          return $("<div>")
-            .addClass("w3-display-container w3-card-4 w3-round-xlarge w3-white")
-            .css({
-              "width": "75px",
-              "height": "calc(75px * 3 / 2)",
-              "display": "inline-block"
-            })
-            .append([
-              $("<div>").addClass("w3-display-topleft w3-padding").text(card),
-              $("<div>")
-                .addClass("w3-display-middle w3-padding")
-                .text(card.slice(-1)),
-              $("<div>")
-                .addClass("w3-display-bottomright w3-padding")
-                .text(card)
-            ]);
-        };
-
-        socket.on("connect", () => {
-          $startButtons.click(function (event) {
-            event.preventDefault();
-            socket.emit(
-              "play",
-              $(this).text().trim().toLowerCase(),
-              $roomCode.val()
-            );
-            $(this).parent().hide();
-          });
-          socket.on("cards", (cards) => {
-            cards.forEach((card) => {
-              createCardElement(card).appendTo($("main"));
-            });
-          });
-        });
-      });
-    </script>
-  </body>
+      Singleplayer
+    </button>
+    <br /><br />
+    <button
+      id="multiplayer-button"
+      class="w3-button w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black"
+      onclick="window.location = 'multiplayer.html'"
+    >
+      Multiplayer
+    </button>
+  </main>
+</body>
 </html>

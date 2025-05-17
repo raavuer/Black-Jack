@@ -12,30 +12,76 @@ const io = new Server(server);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+app.use(express.static("public"));
 app.get("/", (req, res) => {
   res.sendFile(join(__dirname, "index.html"));
 });
 
-const getTenRandomCards = (deck) => {
-  let cards = [];
-  let cardsFromDeck = Object.getOwnPropertyNames(deck);
-  for (let i = 0; i < 10; i++) {
-    let randomCardNumber = Math.floor(Math.random() * cardsFromDeck.length);
-    let card = cardsFromDeck[randomCardNumber];
-    if (card in cards) {
-      i--;
-    } else {
-      cards.push(card);
-    }
+const deckOfCards = {
+  "A♣": 11,
+  "A♦": 11,
+  "A♥": 11,
+  "A♠": 11,
+  "2♣": 2,
+  "2♦": 2,
+  "2♥": 2,
+  "2♠": 2,
+  "3♣": 3,
+  "3♦": 3,
+  "3♥": 3,
+  "3♠": 3,
+  "4♣": 4,
+  "4♦": 4,
+  "4♥": 4,
+  "4♠": 4,
+  "5♣": 5,
+  "5♦": 5,
+  "5♥": 5,
+  "5♠": 5,
+  "6♣": 6,
+  "6♦": 6,
+  "6♥": 6,
+  "6♠": 6,
+  "7♣": 7,
+  "7♦": 7,
+  "7♥": 7,
+  "7♠": 7,
+  "8♣": 8,
+  "8♦": 8,
+  "8♥": 8,
+  "8♠": 8,
+  "9♣": 9,
+  "9♦": 9,
+  "9♥": 9,
+  "9♠": 9,
+  "10♣": 10,
+  "10♦": 10,
+  "10♥": 10,
+  "10♠": 10,
+  "J♣": 10,
+  "J♦": 10,
+  "J♥": 10,
+  "J♠": 10,
+  "Q♣": 10,
+  "Q♦": 10,
+  "Q♥": 10,
+  "Q♠": 10,
+  "K♣": 10,
+  "K♦": 10,
+  "K♥": 10,
+  "K♠": 10,
+};
+const shuffleDeck = (deck) => {
+  const newDeck = Object.getOwnPropertyNames(deck);
+  for (let card = newDeck.length - 1; card > 0; card--) {
+    const randomNumber = Math.floor(Math.random() * (card + 1));
+    [newDeck[card], newDeck[randomNumber]] = [
+      newDeck[randomNumber],
+      newDeck[card],
+    ];
   }
-  return cards;
+  return newDeck;
 };
-
-const drawCard = (cards, recipient) => {
-  cards[recipient].cards.push(cards.drawPile.pop());
-  return cards;
-};
-
 const valueCards = (cards, deckWithValues) => {
   let totalValue = 0;
   cards
@@ -49,43 +95,35 @@ const valueCards = (cards, deckWithValues) => {
   return totalValue;
 };
 
-const deckOfCards = {
-  "A♣": 11, "A♦": 11, "A♥": 11, "A♠": 11,
-  "2♣": 2, "2♦": 2, "2♥": 2, "2♠": 2,
-  "3♣": 3, "3♦": 3, "3♥": 3, "3♠": 3,
-  "4♣": 4, "4♦": 4, "4♥": 4, "4♠": 4,
-  "5♣": 5, "5♦": 5, "5♥": 5, "5♠": 5,
-  "6♣": 6, "6♦": 6, "6♥": 6, "6♠": 6,
-  "7♣": 7, "7♦": 7, "7♥": 7, "7♠": 7,
-  "8♣": 8, "8♦": 8, "8♥": 8, "8♠": 8,
-  "9♣": 9, "9♦": 9, "9♥": 9, "9♠": 9,
-  "10♣": 10, "10♦": 10, "10♥": 10, "10♠": 10,
-  "J♣": 10, "J♦": 10, "J♥": 10, "J♠": 10,
-  "Q♣": 10, "Q♦": 10, "Q♥": 10, "Q♠": 10,
-  "K♣": 10, "K♦": 10, "K♥": 10, "K♠": 10
-}
-
-const games = {};
+const players = {
+  Dealer: [],
+};
 io.on("connection", (socket) => {
-  socket.on("play", (gameType, room) => {
-    if (gameType === "join") {
-      if (games[room]) {
-        games[room].players.push(socket.id);
-        socket.on("disconnect", () => {
-          games[room].players.pop(socket.id);
-        });
-      }
-    } else if (gameType === "host") {
-      games[socket.id.substring(0, 4).toUpperCase()] = {
-        gameType: "multi",
-        players: [socket.id],
-      };
-      socket.on("disconnect", () => {
-        delete games[socket.id.substring(0, 4).toUpperCase()];
-      });
-    } else {
-      window.location("single-player.html");
+  players[socket.id] = [];
+  socket.on("disconnect", () => {
+    delete players[socket.id];
+  });
+  io.emit("connect-players", players);
+  const drawPile = shuffleDeck(deckOfCards);
+  for (const player in players) {
+    players[player] = [];
+    players[player].push(drawPile.pop());
+    if (player !== "Dealer") {
+      players[player].push(drawPile.pop());
     }
+  }
+  io.emit("deal-cards", players);
+  socket.on("hit", () => {
+    players[socket.id].push(drawPile.pop());
+    io.emit("deal-cards", players);
+  });
+  let playersDone = 0;
+  socket.on("stay", () => {
+    playersDone++;
+    if (playersDone < Object.getOwnPropertyNames(players).length - 1) {
+      return;
+    }
+    console.log("everyone is done!");
   });
 });
 

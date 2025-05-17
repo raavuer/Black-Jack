@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Black Jack</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css" />
+  </head>
+  <body class="w3-center w3-green w3-text-black">
+    <header
+      class="w3-container w3-card-4 w3-cyan w3-border-bottom w3-border-black"
+    >
+      <h1 class="w3-left">Black Jack</h1>
+    </header>
+    <main id="players" class="w3-panel w3-cell-row"></main>
+    <footer class="w3-container w3-margin">
+      <button
+        class="w3-button w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black w3-hide"
+        id="start-button"
+      >
+        Start
+      </button>
+    </footer>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+      "use strict";
+      $(() => {
+        const createCardElement = (card) => {
+          return $("<div>")
+            .addClass("w3-display-container w3-card-4 w3-round-xlarge w3-white")
+            .css({
+              width: "100px",
+              height: "calc(100px * 3 / 2)",
+              display: "inline-block",
+            })
+            .append([
+              $("<div>")
+                .addClass("w3-display-topleft w3-padding")
+                .append($("<h5>").text(card)),
+              $("<div>")
+                .addClass("w3-display-middle w3-padding")
+                .append($("<h6>").text(card.slice(-1))),
+              $("<div>")
+                .addClass("w3-display-bottomright w3-padding")
+                .append($("<h5>").text(card)),
+            ]);
+        };
+        const $players = $("#players");
+        const socket = io();
+        socket.on("connect-players", (players) => {
+          $players.empty();
+          for (const player in players) {
+            $("<div>")
+              .attr("id", player)
+              .addClass("w3-card-4 w3-round-xlarge w3-border w3-border-black")
+              .append($("<h2>").text(player), $("<div>").addClass("cards"))
+              .appendTo($players);
+            if (player === socket.id) {
+              $players
+                .find(`#${player}`)
+                .append(
+                  $("<button>")
+                    .attr("id", "hit-button")
+                    .addClass(
+                      "w3-button w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black"
+                    )
+                    .text("Hit"),
+                  $("<button>")
+                    .attr("id", "stay-button")
+                    .addClass(
+                      "w3-button w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black"
+                    )
+                    .text("Stay")
+                );
+            }
+          }
+        });
+        socket.on("deal-cards", (players) => {
+          for (const player in players) {
+            $players.find(`#${player} .cards`).empty();
+            for (const card of players[player]) {
+              $players
+                .find(`#${player} .cards`)
+                .append(createCardElement(card));
+            }
+          }
+          const $hitButton = $("#hit-button");
+          $hitButton.click(() => {
+            $hitButton.off("click");
+            socket.emit("hit");
+          });
+          const $stayButton = $("#stay-button");
+          $stayButton.click(() => {
+            $hitButton.hide();
+            $stayButton.hide();
+            socket.emit("stay");
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
