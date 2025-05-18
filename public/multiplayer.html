@@ -17,9 +17,9 @@
     <footer class="w3-container w3-margin">
       <button
         class="w3-button w3-card-4 w3-round-xlarge w3-border w3-border-black w3-cyan w3-hover-black w3-hide"
-        id="start-button"
+        id="restart-button"
       >
-        Start
+        Restart
       </button>
     </footer>
 
@@ -29,7 +29,7 @@
       $(() => {
         const createCardElement = (card) => {
           return $("<div>")
-            .addClass("w3-display-container w3-card-4 w3-round-xlarge w3-white")
+            .addClass("w3-display-container w3-card-4 w3-round-xlarge w3-white w3-border")
             .css({
               width: "100px",
               height: "calc(100px * 3 / 2)",
@@ -54,7 +54,9 @@
           for (const player in players) {
             $("<div>")
               .attr("id", player)
-              .addClass("w3-card-4 w3-round-xlarge w3-border w3-border-black")
+              .addClass(
+                "w3-cell w3-mobile w3-card-4 w3-round-xlarge w3-border w3-border-black"
+              )
               .append($("<h2>").text(player), $("<div>").addClass("cards"))
               .appendTo($players);
             if (player === socket.id) {
@@ -86,17 +88,22 @@
                 .append(createCardElement(card));
             }
           }
-          const $hitButton = $("#hit-button");
-          $hitButton.click(() => {
-            $hitButton.off("click");
-            socket.emit("hit");
-          });
           const $stayButton = $("#stay-button");
+          const $hitButton = $("#hit-button");
           $stayButton.click(() => {
             $hitButton.hide();
             $stayButton.hide();
             socket.emit("stay");
           });
+          $hitButton.click(() => {
+            $hitButton.off("click");
+            $stayButton.off("click");
+            socket.emit("hit");
+          });
+        });
+        $("#restart-button").click(function () {
+          $(this).hide();
+          socket.emit("restart");
         });
       });
     </script>

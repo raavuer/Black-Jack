@@ -84,14 +84,16 @@ const shuffleDeck = (deck) => {
 };
 const valueCards = (cards, deckWithValues) => {
   let totalValue = 0;
-  cards
-    .sort()
-    .reverse() // Count Aces last
-    .forEach((card) => {
-      let value = deckWithValues[card];
-      value = value === 11 ? (totalValue + value > 22 ? 1 : 11) : value;
-      totalValue += value;
-    });
+  cards.forEach((card, index) => {
+    if (card[0] === "A") {
+      cards.push(cards.splice(index, 1)[0]);
+    }
+  });
+  cards.forEach((card) => {
+    let value = deckWithValues[card];
+    value = value === 11 ? (totalValue + value > 22 ? 1 : 11) : value;
+    totalValue += value;
+  });
   return totalValue;
 };
 
@@ -102,6 +104,7 @@ io.on("connection", (socket) => {
   players[socket.id] = [];
   socket.on("disconnect", () => {
     delete players[socket.id];
+    io.emit("connect-players", players);
   });
   io.emit("connect-players", players);
   const drawPile = shuffleDeck(deckOfCards);
@@ -120,10 +123,13 @@ io.on("connection", (socket) => {
   let playersDone = 0;
   socket.on("stay", () => {
     playersDone++;
-    if (playersDone < Object.getOwnPropertyNames(players).length - 1) {
-      return;
+    if (playersDone >= Object.getOwnPropertyNames(players).length - 1) {
+      playersDone = 0;
+      while (valueCards(players["Dealer"], deckOfCards) < 17) {
+        players["Dealer"].push(drawPile.pop());
+        io.emit("deal-cards", players);
+      }
     }
-    console.log("everyone is done!");
   });
 });
 
