@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <title>Black Jack</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" type="text/css" href="styles.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  </head>
+  <body>
+    <main>
+      <div class="player" id="dealer">
+        <h3>Dealer</h3>
+        <p class="cardsValue"></p>
+        <div class="cards"></div>
+      </div>
+      <div id="players"></div>
+    </main>
+    <footer>
+      <button id="restart">Restart</button>
+    </footer>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+      const socket = io();
+      const createPlayer = (playerId, playerName) => {
+        return $("<div>")
+          .addClass("player")
+          .attr("id", playerId)
+          .append(
+            $("<h3>").text(playerName),
+            $("<p>").addClass("result"),
+            $("<p>").addClass("cardsValue"),
+            $("<div>").addClass("cards")
+          );
+      };
+      const createCard = (card) => {
+        const cardValue = card.length > 2 ? card.slice(0, 2) : card.slice(0, 1);
+        const cardSuite = card.slice(-1);
+        return $("<div>")
+          .addClass("card")
+          .append(
+            $("<h6>").text(cardValue),
+            $("<h5>").text(cardSuite),
+            $("<h6>").text(cardValue)
+          );
+      };
+      const addPlayerButtons = () => {
+        return $("<div>").append(
+          $("<button>").attr("id", "hitButton").text("Hit"),
+          $("<button>").attr("id", "stayButton").text("Stay")
+        );
+      };
+      socket.on("connectPlayers", (connectedPlayers) => {
+        $(players).empty();
+        for (player in connectedPlayers) {
+          if (player === "dealer") {
+            continue;
+          }
+          createPlayer(player, connectedPlayers[player].name).appendTo(players);
+          if (player === socket.id) {
+            $(`#${player}`)
+              .find("h3")
+              .text(`You (${connectedPlayers[player].name})`);
+            $(`#${player}`).find(".cards").after(addPlayerButtons());
+            $(stayButton).click(() => {
+              $([hitButton, stayButton]).hide().off("click");
+              socket.emit("stay");
+            });
+            $(hitButton).click(() => {
+              socket.emit("hit");
+            });
+          }
+        }
+      });
+      socket.on("drawCards", (connectedPlayers) => {
+        for (const player in connectedPlayers) {
+          $(`#${player}`).find(".cards").empty();
+          for (card of connectedPlayers[player].cards) {
+            $(`#${player}`).find(".cards").append(createCard(card));
+          }
+          $(`#${player}`)
+            .find(".cardsValue")
+            .text(connectedPlayers[player].cardsValue);
+        }
+        if (connectedPlayers[socket.id].cards.length > 4) {
+          $(stayButton).click();
+        }
+      });
+      socket.on("displayResults", (connectedPlayers) => {
+        for (const player in connectedPlayers) {
+          if (player === "dealer") {
+            continue;
+          }
+          if (connectedPlayers[player].didWin) {
+            $(`#${player}`)
+              .find(".result")
+              .text("Won");
+          } else {
+            $(`#${player}`)
+              .find(".result")
+              .text("Lost");
+          }
+        }
+      });
+      socket.on("restart", () => {
+        location.reload();
+      });
+      $(restart).click(() => {
+        socket.emit("restart");
+      });
+    </script>
+  </body>
+</html>
